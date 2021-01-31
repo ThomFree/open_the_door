@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<meta name="description" content="Open the door project from @ThomFree">
+	<meta name="author" content="Thomas Hedoux">
+	<link rel="icon" href="/img/favicon.ico"> <!-- TODO Base 64 favicon -->
+
+	<title>Open The Door - Accueil</title>
+
+	<link rel="canonical" href="https://getbootstrap.com/docs/4.0/examples/sticky-footer-navbar/"> <!-- TODO Change this link -->
+	<link href="./css/bootstrap.min.css" rel="stylesheet"><!-- TODO Import online bootstrap -->
+
+	<style type="text/css">
+		html {
+			position: relative;
+			min-height: 100%;
+		}
+		body {
+			margin-bottom: 60px; /* Margin bottom by footer height */
+		}
+		.footer {
+			position: absolute;
+			bottom: 0;
+			width: 100%;
+			height: 60px; /* Set the fixed height of the footer here */
+			line-height: 60px; /* Vertically center the text there */
+			background-color: #f5f5f5;
+		}
+		body > .container {
+			padding: 60px 15px 0;
+		}
+		.c-gold {
+			color: gold;
+		}
+		.c-green {
+			color: green;
+		}
+	</style>
+</head>
+<body>
+
+	<header>
+		<nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+			<a class="navbar-brand" href="#">Open The Door</a> <!-- TODO ajouter logo en base 64 d'un cadenas -->
+	  </nav>
+	</header>
+
+	<!-- Begin page content -->
+	<main role="main" class="container text-center mt-1">
+		<div id="alert-style" class="alert alert-success alert-dismissible fade" role="alert">
+			<span id="alert-message"></span>
+			<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+				<span aria-hidden="true">&times;</span>
+			</button>
+		</div>
+		<h2 class="mt-1 display-4" style="display: inline-block;">%name%,&nbsp;</h2>
+		<p class="lead" style="display: inline-block;font-size: 1rem;"> la porte est <span id="text_door_status" class="%door_status_color%" style="font-size: 2rem;">%door_status%</span></p>
+		<p class="lead mt-2">Vous pouvez la controler à l'aide des boutons ci-dessous :</p>
+		<button type="button" onClick="openTheDoor()" class="btn btn-warning btn-lg mr-2 mt-2">Ouvrir</button>
+		<button type="button" onClick="closeTheDoor()" class="btn btn-info btn-lg mr-2 mt-2">Fermer</button>
+		<button type="button" class="btn btn-light btn-lg mt-2">Configurer</button>
+
+	</main>
+
+	<footer class="footer">
+		<div class="container">
+			<span class="text-muted">Fait par Thomas Hedoux</span>
+		</div>
+	</footer>
+
+	<!-- JS scripts -->
+	<script type="text/javascript">
+		var IS_DOOR_CLOSED = true;
+
+		function openTheDoor() {
+			console.log('Opening the door...');
+			setAlert('warning', 'Porte en cours d\'ouverture...');
+			// TODO call to open the door (should return only when door is opened) /api/open
+			setAlert('success', 'Porte ouverte.');
+			IS_DOOR_CLOSED = false;
+			setDoorStatus();
+			console.log('Door opened.');
+		}
+
+		function closeTheDoor() {
+			console.log('Closing the door...');
+			setAlert('warning', 'Porte en cours de fermeture...');
+			// TODO call to close the door (should return only when door is opened) /api/close
+			setAlert('success', 'Porte fermée.');
+			IS_DOOR_CLOSED = true;
+			setDoorStatus();
+			console.log('Door closed.');
+		}
+
+		function setAlert(type, message) {
+			document.getElementById('alert-message').innerText = message;
+			document.getElementById('alert-style').setAttribute('class', 'alert alert-dismissible fade show alert-' + type)
+		}
+
+		function setDoorStatus() {
+			if (IS_DOOR_CLOSED) {
+				document.getElementById('text_door_status').innerHTML = '&nbsp;fermée';
+				document.getElementById('text_door_status').setAttribute('class', 'c-green');
+			}
+			else {
+				document.getElementById('text_door_status').innerHTML = '&nbsp;ouverte';
+				document.getElementById('text_door_status').setAttribute('class', 'c-gold');
+			}
+		}
+	</script>
+	<!-- TODO Import online JS and check for CORS -->
+	<script src="./js/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+	<script>window.jQuery || document.write('<script src="./js/jquery-slim.min.js"><\/script>')</script>
+	<script src="./js/popper.min.js"></script>
+	<script src="./js/bootstrap.min.js"></script>
+
+</body></html>
