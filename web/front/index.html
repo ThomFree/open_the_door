@@ -3,44 +3,18 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-	<meta name="description" content="Open the door project from @ThomFree">
+	<meta name="description" content="Open the door project from @ThomFree on Github">
 	<meta name="author" content="Thomas Hedoux">
 	<link rel="icon" href="/img/favicon.ico"> <!-- TODO Base 64 favicon -->
 
 	<title>Open The Door - Accueil</title>
 
-	<link rel="canonical" href="https://getbootstrap.com/docs/4.0/examples/sticky-footer-navbar/"> <!-- TODO Change this link -->
-	<link href="./css/bootstrap.min.css" rel="stylesheet"><!-- TODO Import online bootstrap -->
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-giJF6kkoqNQ00vy+HMDP7azOuL0xtbfIcaT9wjKHr8RbDVddVHyTfAAsrekwKmP1" crossorigin="anonymous">
+	<link href="./css/style.css" rel="stylesheet">
 
-	<style type="text/css">
-		html {
-			position: relative;
-			min-height: 100%;
-		}
-		body {
-			margin-bottom: 60px; /* Margin bottom by footer height */
-		}
-		.footer {
-			position: absolute;
-			bottom: 0;
-			width: 100%;
-			height: 60px; /* Set the fixed height of the footer here */
-			line-height: 60px; /* Vertically center the text there */
-			background-color: #f5f5f5;
-		}
-		body > .container {
-			padding: 60px 15px 0;
-		}
-		.c-gold {
-			color: gold;
-		}
-		.c-green {
-			color: green;
-		}
-	</style>
 </head>
 <body>
-
+	
 	<header>
 		<nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
 			<a class="navbar-brand" href="#">Open The Door</a> <!-- TODO ajouter logo en base 64 d'un cadenas -->
@@ -58,9 +32,9 @@
 		<h2 class="mt-1 display-4" style="display: inline-block;">%name%,&nbsp;</h2>
 		<p class="lead" style="display: inline-block;font-size: 1rem;"> la porte est <span id="text_door_status" class="%door_status_color%" style="font-size: 2rem;">%door_status%</span></p>
 		<p class="lead mt-2">Vous pouvez la controler à l'aide des boutons ci-dessous :</p>
-		<button type="button" onClick="openTheDoor()" class="btn btn-warning btn-lg mr-2 mt-2">Ouvrir</button>
-		<button type="button" onClick="closeTheDoor()" class="btn btn-info btn-lg mr-2 mt-2">Fermer</button>
-		<button type="button" class="btn btn-light btn-lg mt-2">Configurer</button>
+		<button type="button" class="btn btn-warning btn-lg">Ouvrir</button>
+		<button type="button" class="btn btn-info btn-lg">Fermer</button>
+		<button type="button" class="btn btn-dark btn-lg">Configurer</button>
 
 	</main>
 
@@ -71,7 +45,17 @@
 	</footer>
 
 	<!-- JS scripts -->
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js" integrity="sha384-q2kxQ16AaE6UbzuKqyBE9/u/KzioAlnx2maXQHiDX9d4/zp8Ok3f+M7DPm+Ib6IU" crossorigin="anonymous"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.min.js" integrity="sha384-pQQkAEnwaBkjpqZ8RU1fF1AKtTcHJwFl3pblpTlHXybJjHpMYo79HY3hIi4NKxyj" crossorigin="anonymous"></script>
+	<script src="./js/doorsocket.js"></script>
+
 	<script type="text/javascript">
+		$(document).ready(function () {
+			// DEBUG
+			console.log('READY');
+		});
+
 		var IS_DOOR_CLOSED = true;
 
 		function openTheDoor() {
@@ -110,10 +94,5 @@
 			}
 		}
 	</script>
-	<!-- TODO Import online JS and check for CORS -->
-	<script src="./js/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
-	<script>window.jQuery || document.write('<script src="./js/jquery-slim.min.js"><\/script>')</script>
-	<script src="./js/popper.min.js"></script>
-	<script src="./js/bootstrap.min.js"></script>
 
 </body></html>

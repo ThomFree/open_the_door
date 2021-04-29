@@ -9,7 +9,7 @@
 //////////////
 // MOTOR
 #define MOTOR_DEFAULT_SPEED 10
-#define MOTOR_DEFAULT_SPAN 500
+#define MOTOR_DEFAULT_SPAN 1000
 #define MOTOR_DEFAULT_DIRECTION 1
 #define MOTOR_STEPS 2048
 #define MOTOR_IN1 D5
@@ -20,6 +20,10 @@
 // LEDS
 #define LED_PIN_RED 16
 #define LED_PIN_BLUE 2
+
+// DOOR CAPTOR
+#define CAPTOR_PIN D1
+#define CAPTOR_OPEN_VALUE 0
 
 // WIFI
 //#define WIFI_SSID "Le Bureau"
@@ -33,14 +37,36 @@
 // NODEMCU
 #define DEFAULT_SOFTWARE_TIMEOUT 1000
 
+// CONFIG
+#define DEFAULT_MAGIC_NUMBER "42IsLife"
+#define MAGIC_NUMBER_SIZE 9
+#define EEPROM_STARTING_ADDRESS 0x00
+#define MAX_WIFI_SSID_SIZE 33
+#define MAX_WIFI_PASS_SIZE 64
+#define NB_USERS 10
+#define KEY_SIZE 20
+#define USERNAME_SIZE 25
+
 /////////////////
 //  STRUCTURE  //
 /////////////////
+struct s_user {
+  char key[KEY_SIZE];
+  char username[USERNAME_SIZE];
+};
+
 struct s_motor {
   int speed;
   int direction;
   int span;
-  Stepper motor;
+};
+
+struct s_config {
+  char magic_number[MAGIC_NUMBER_SIZE];
+  char wifi_ssid[MAX_WIFI_SSID_SIZE];
+  char wifi_password[MAX_WIFI_PASS_SIZE];
+  struct s_user users[NB_USERS];
+  struct s_motor motor;
 };
 
 struct s_door {
