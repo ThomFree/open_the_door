@@ -7,6 +7,9 @@
 //////////////
 //  CONFIG  //
 //////////////
+// HTTP SERVER
+#define HTTP_SERVER_PORT 80
+
 // MOTOR
 #define MOTOR_DEFAULT_SPEED 10
 #define MOTOR_DEFAULT_SPAN 1000
@@ -20,16 +23,17 @@
 // LEDS
 #define LED_PIN_RED 16
 #define LED_PIN_BLUE 2
+#define TIME_BETWEEN_BLINKS 800
 
 // DOOR CAPTOR
 #define CAPTOR_PIN D1
 #define CAPTOR_OPEN_VALUE 0
 
 // WIFI
-//#define WIFI_SSID "Le Bureau"
-//#define WIFI_PASSWORD "lespotdetravail2020"
 #define WIFI_SSID "ouioui"
 #define WIFI_PASSWORD "azertyuiop"
+#define MAX_WIFI_CONNECT_DELAY 20000
+#define WIFI_DELAY_BETWEEN_CONNECT 250
 
 // DOOR
 #define TIME_MS_BEFORE_CLOSING_LATCH 3000

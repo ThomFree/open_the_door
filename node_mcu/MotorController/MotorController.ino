@@ -5,6 +5,7 @@
 //
 
 #include <ESP8266WiFi.h>
+#include <ESPAsyncWebServer.h>
 #include <EEPROM.h>
 #include "MotorController.h"
 
@@ -15,48 +16,66 @@ String GInputString;
 struct s_config GConfig;
 struct s_door GDoorData = {.isDoorOpened = false, .isLatchOpened = false, .latchOpenedSince = 0};
 Stepper GMotor = Stepper(MOTOR_STEPS, MOTOR_IN4, MOTOR_IN2, MOTOR_IN3, MOTOR_IN1);
+AsyncWebServer GWebServer(HTTP_SERVER_PORT);
+
+// Keep alive led for main loop
+bool GAliveLed = false;
+unsigned long GLastBlink = 0;
 
 
 ////////////////////////
 //  MEMORY FUNCTIONS  //
 ////////////////////////
-void print_motor_status(struct s_config *configData) {
-  Serial.print("Motor direction: ");
-  Serial.println(configData->motor.direction);
-  Serial.print("Motor span: ");
-  Serial.println(configData->motor.span);
-  Serial.print("Motor speed: ");
-  Serial.println(configData->motor.speed);
+String print_motor_status(struct s_config *configData) {
+  String res;
+
+  res += "Motor direction: ";
+  res += configData->motor.direction;
+  res += "\nMotor span: ";
+  res += configData->motor.span;
+  res += "\nMotor speed: ";
+  res += configData->motor.speed;
+  res += "\n";
+  return res;
 }
 
-void print_user_status(struct s_user *user, int id) {
-  Serial.print("User ");
-  Serial.print(id + 1);
-  Serial.print(" : ");
+String print_user_status(struct s_user *user, int id) {
+  String res;
+
+  res += "User ";
+  res += id + 1;
+  res += " : ";
   if (user->key[0] == '\0') {
-    Serial.println(" == Undefined ==");
-    return;
+    res += " == Undefined ==";
+    return res;
   }
-  Serial.print(user->username);
-  Serial.print(" / ");
-  Serial.println(user->key);
+  res += user->username;
+  res += " / ";
+  res += user->key;
+  return res;
 }
 
-void print_all_users(struct s_config *configData) {
+String print_all_users(struct s_config *configData) {
+  String res;
+
   for (int i = 0; i < NB_USERS; i++) {
-    print_user_status(&configData->users[i], i);
+    res += print_user_status(&configData->users[i], i);
   }
+  return res;
 }
 
-void print_global_config(struct s_config *configData) {
-  Serial.println("[I] Current config:");
-  Serial.print("Wifi: ");
-  Serial.print(configData->wifi_ssid);
-  Serial.print(" / ");
-  Serial.println(configData->wifi_password);
-  print_all_users(configData);
-  print_motor_status(configData);
-  Serial.println("[I] End of current config:");
+String print_global_config(struct s_config *configData) {
+  String res;
+
+  res += "[I] Current config:\n";
+  res += "Wifi: ";
+  res += configData->wifi_ssid;
+  res += " / ";
+  res += configData->wifi_password;
+  res += print_all_users(configData);
+  res += print_motor_status(configData);
+  res += "\n[I] End of current config\n";
+  return res;
 }
 
 void write_config_to_memory(struct s_config *configData) {
@@ -69,7 +88,7 @@ void write_config_to_memory(struct s_config *configData) {
   delay(100);
 }
 
-void reset_global_config(struct s_config *configData) {
+String reset_global_config(struct s_config *configData) {
   memset(configData, '\0', sizeof(struct s_config));
   strcpy(configData->magic_number, DEFAULT_MAGIC_NUMBER);
   strcpy(configData->wifi_ssid, WIFI_SSID);
@@ -77,7 +96,7 @@ void reset_global_config(struct s_config *configData) {
   configData->motor.speed = MOTOR_DEFAULT_SPEED;
   configData->motor.direction = MOTOR_DEFAULT_DIRECTION;
   configData->motor.span = MOTOR_DEFAULT_SPAN;
-  Serial.println("[I] Config reset to default values successfully.");
+  return(String("[I] Config reset to default values successfully.\n"));
 }
 
 void init_global_config(struct s_config *configData) {
@@ -103,43 +122,65 @@ const char *convert_bool_to_status(bool statusToConvert) {
   return (statusToConvert ? "Opened" : "Closed");
 }
 
-void run_status(struct s_motor* motorData, struct s_door* doorData) {
-  Serial.print("[I] Status of the door: ");
-  Serial.println(convert_bool_to_status(doorData->isDoorOpened));
-  Serial.print("[I] Status of the latch: ");
-  Serial.println(convert_bool_to_status(doorData->isLatchOpened));
-  Serial.println("");
+String run_status(struct s_motor* motorData, struct s_door* doorData) {
+  String res;
+
+  res += "[I] Status of the door: ";
+  res += convert_bool_to_status(doorData->isDoorOpened);
+  res += "\n[I] Status of the latch: ";
+  res += convert_bool_to_status(doorData->isLatchOpened);
+  res += "\n\n";
+  return res;
 }
 
-void run_open_latch(struct s_motor* motorData, struct s_door* doorData) {
-  if (doorData->isLatchOpened) {
-    Serial.println("[W] Latch already opened.");
-    return;
-  } else if (doorData->isDoorOpened) {
-    Serial.println("[W] Door already opened, it is not necessary to open the latch.");
-    return;
+String wifi_status() {
+  String res;
+
+  if (WiFi.status() == WL_CONNECTED) {
+    res += "[I] WiFi connected. IP: ";
+    res += WiFi.localIP().toString();
+    res += "\n";
+  } else {
+    res += "[I] Wifi not connected.\n";
   }
-  Serial.println("[I] Opening the latch...");
+  return res;
+}
+
+String run_open_latch(struct s_motor* motorData, struct s_door* doorData) {
+  String res;
+
+  if (doorData->isLatchOpened) {
+    res += "[W] Latch already opened.\n";
+    return res;
+  } else if (doorData->isDoorOpened) {
+    res += "[W] Door already opened, it is not necessary to open the latch.\n";
+    return res;
+  }
+  res += "[I] Opening the latch...\n";
   digitalWrite(LED_PIN_RED, LOW);
   step_motor(motorData->span, motorData);
   doorData->isLatchOpened = true;
   doorData->latchOpenedSince = millis();
   digitalWrite(LED_PIN_RED, HIGH);
-  Serial.println("[I] Latch opened.");
+  res += "[I] Latch opened.\n";
+  return res;
 }
 
-void run_close_latch(struct s_motor* motorData, struct s_door* doorData) {
+String run_close_latch(struct s_motor* motorData, struct s_door* doorData) {
+  String res;
+
   if (!doorData->isLatchOpened) {
-    Serial.println("[W] Latch already closed.");
-    return;
+    res += "[W] Latch already closed.\n";
+    return res;
   }
-  Serial.println("[I] Closing the latch...");
+  res += "[I] Closing the latch...\n";
   digitalWrite(LED_PIN_RED, LOW);
   step_motor(motorData->span * -1, motorData);
   doorData->isLatchOpened = false;
   doorData->latchOpenedSince = 0;
   digitalWrite(LED_PIN_RED, HIGH);
-  Serial.println("[I] Latch closed.");
+  res += "[I] Latch closed.\n";
+  return res;
 }
 
 void step_motor(int step, struct s_motor* motorData)
@@ -150,119 +191,138 @@ void step_motor(int step, struct s_motor* motorData)
   ESP.wdtEnable(DEFAULT_SOFTWARE_TIMEOUT);
 }
 
-void set_door_status(struct s_door* doorData) {
+String set_door_status(struct s_door* doorData) {
+  String res;
+
   doorData->isDoorOpened = !doorData->isDoorOpened;
   if (doorData->isDoorOpened) {
-    Serial.println("[I] Door opened.");
+    res += "[I] Door opened.\n";
   } else {
-    Serial.println("[I] Door closed.");
+    res += "[I] Door closed.\n";
   }
+  return res;
 }
 
-void set_motor_direction(String *direction, struct s_motor* motorData) {
+String set_motor_direction(String *direction, struct s_motor* motorData) {
+  String res;
+
   if (direction->equals("motor_direction=1")) {
     motorData->direction = 1;
   } else if (direction->equals("motor_direction=-1")) {
     motorData->direction = -1;
   } else {
-    Serial.println("[E] Invalid motor direction.");
-    return;
+    res += "[E] Invalid motor direction.\n";
+    return res;
   }
-  Serial.print("[I] Motor direction is set to: ");
-  Serial.println(motorData->direction);
+  res += "[I] Motor direction is set to: ";
+  res += motorData->direction;
+  res += "\n";
+  return res;
 }
 
-void set_motor_span(int newSpan, struct s_motor* motorData) {
+String set_motor_span(int newSpan, struct s_motor* motorData) {
+  String res;
+
   if (newSpan <= 0) {
-    Serial.println("[E] Invalid input motor span.");
-    return;
+    return String("[E] Invalid input motor span.\n");
   }
   motorData->span = newSpan;
-  Serial.print("[I] Motor span is set to: ");
-  Serial.println(motorData->span);
+  res += "[I] Motor span is set to: ";
+  res += motorData->span;
+  res += "\n";
+  return res;
 }
 
-void set_motor_speed(int newSpeed, struct s_motor* motorData) {
+String set_motor_speed(int newSpeed, struct s_motor* motorData) {
+  String res;
+
   if (newSpeed <= 0) {
-    Serial.println("[E] Invalid input motor speed.");
-    return;
+    res += "[E] Invalid input motor speed.";
+    return res;
   }
   motorData->speed = newSpeed;
-  Serial.print("[I] Motor speed is set to: ");
-  Serial.println(motorData->speed);
+  res += "[I] Motor speed is set to: ";
+  res += motorData->speed;
+  res += "\n";
+  return res;
 }
 
-void set_wifi_ssid(String *message, struct s_config *configData) {
+String set_wifi_ssid(String *message, struct s_config *configData) {
   String ssid = getStringFromMessage(message, '=', 1);
+  String res;
 
   if (ssid.length() <= 0) {
-    Serial.println("[E] Invalid Wifi SSID.");
-    return;
+    return String("[E] Invalid Wifi SSID.\n");
   }
   if (ssid.length() >= MAX_WIFI_SSID_SIZE) {
-    Serial.println("[E] Wifi SSID is too long.");
-    return;
+    return String("[E] Wifi SSID is too long.\n");
   }
   strcpy(configData->wifi_ssid, ssid.c_str());
-  Serial.print("[I] Wifi SSID is set to: ");
-  Serial.println(ssid);
+  res += "[I] Wifi SSID is set to: ";
+  res += ssid;
+  res += "\n";
+  return res;
 }
 
-void set_wifi_password(String *message, struct s_config *configData) {
+String set_wifi_password(String *message, struct s_config *configData) {
   String pass = getStringFromMessage(message, '=', 1);
+  String res;
 
   if (pass.length() <= 0) {
-    Serial.println("[E] Invalid Wifi Password.");
-    return;
+    return String("[E] Invalid Wifi Password.");
   }
   if (pass.length() >= MAX_WIFI_PASS_SIZE) {
-    Serial.println("[E] Wifi password is too long.");
-    return;
+    return String("[E] Wifi password is too long.");
   }
   strcpy(configData->wifi_password, pass.c_str());
-  Serial.print("[I] Wifi password is set to: ");
-  Serial.println(pass);
+  res += "[I] Wifi password is set to: ";
+  res += pass;
+  res += "\n";
+  return res;
 }
 
-void set_user(String *message, struct s_config *configData) {
+String set_user(String *message, struct s_config *configData) {
   String id = getStringFromMessage(message, '=', 1);
   String username = getStringFromMessage(message, '=', 2);
   String key = getStringFromMessage(message, '=', 3);
   String last = getStringFromMessage(message, '=', 4);
+  String res;
   int pos = id.toInt() - 1;
 
   if (id.length() <= 0 || username.length() <= 0 || key.length() <= 0 || last.length() != 0) {
-    Serial.println("[E] Invalid Set user request. Format: id=username=key (You can't have '=' in username or key)");
-    return;
+    return String("[E] Invalid Set user request. Format: id=username=key (You can't have '=' in username or key)\n");
   }
   if (username.length() >= USERNAME_SIZE || key.length() >= KEY_SIZE) {
-    Serial.println("[E] The key or username you provided is too long.");
-    return;
+    return String("[E] The key or username you provided is too long.\n");
   }
   if (pos < 0 || pos > 9) {
-    Serial.print("[E] Invalid ID, it has to be between >= 1 and <= ");
-    Serial.print(NB_USERS);
-    Serial.println(".");
-    return;
+    res += "[E] Invalid ID, it has to be between >= 1 and <= ";
+    res += (NB_USERS);
+    res += ".\n";
+    return res;
   }
   strcpy(configData->users[pos].key, key.c_str());
   strcpy(configData->users[pos].username, username.c_str());
-  Serial.println("[I] User set.");
+  res += "[I] User set.\n";
+  return res;
 }
 
-void remove_user(struct s_config *configData, int id) {
+String remove_user(struct s_config *configData, int id) {
+  String res;
+
   if (id < 1 || id > NB_USERS) {
-    Serial.print("[E] Invalid ID, it has to be between >= 1 and <= ");
-    Serial.print(NB_USERS);
-    Serial.println(".");
-    return;
+    res += "[E] Invalid ID, it has to be between >= 1 and <= ";
+    res += (NB_USERS);
+    res += ".\n";
+    return res;
   }
   id -= 1;
   memset(configData->users[id].key, '\0', KEY_SIZE);
   memset(configData->users[id].username, '\0', USERNAME_SIZE);
-  Serial.print("[I] User ");
-  Serial.print(id + 1);
-  Serial.println(" successfully removed.");
+  res += "[I] User ";
+  res += id + 1;
+  res += " successfully removed.\n";
+  return res;
 }
 
 int getValueFromMessage(String *message, char charSeparator) {
@@ -297,50 +357,58 @@ String getStringFromMessage(String *message, char charSeparator, int skip) {
   return tmp;
 }
 
-void interpretSerialMessage(String *message, struct s_config* configData, struct s_door* doorData) {
+String interpretSerialMessage(String *message, struct s_config* configData, struct s_door* doorData) {
   struct s_motor* motorData = &configData->motor;
+  String res = "yolo\n\nTEST\n\n";
 
   if (message->equals("open")) {
-    run_open_latch(motorData, doorData);
+    res = run_open_latch(motorData, doorData);
   } else if (message->equals("close")) {
-    run_close_latch(motorData, doorData);
+    res = run_close_latch(motorData, doorData);
   } else if (message->startsWith("reset_config")) {
-    reset_global_config(configData);
+    res = reset_global_config(configData);
     write_config_to_memory(configData);
   } else if (message->equals("motor_status")) {
-    print_motor_status(configData);
+    res = print_motor_status(configData);
   } else if (message->equals("config_status")) {
-    print_global_config(configData);
+    res = print_global_config(configData);
   } else if (message->equals("status")) {
-    run_status(motorData, doorData);
+    res = run_status(motorData, doorData);
   } else if (message->startsWith("motor_span=")) {
-    set_motor_span(getValueFromMessage( message, '=' ), motorData);
+    res = set_motor_span(getValueFromMessage( message, '=' ), motorData);
     write_config_to_memory(configData);
   } else if (message->startsWith("motor_forward=")) {
     step_motor(getValueFromMessage( message, '=' ), motorData);
+    res = String("[I] Motor stepped forward.");
   } else if (message->startsWith("motor_backward=")) {
     step_motor(getValueFromMessage( message, '=' ) * -1, motorData);
+    res = String("[I] Motor stepped backward.");
   } else if (message->startsWith("motor_direction=")) {
-    set_motor_direction(message, motorData);
+    res = set_motor_direction(message, motorData);
     write_config_to_memory(configData);
   } else if (message->startsWith("motor_speed=")) {
-    set_motor_speed(getValueFromMessage( message, '=' ), motorData);
+    res = set_motor_speed(getValueFromMessage( message, '=' ), motorData);
     write_config_to_memory(configData);
   } else if (message->startsWith("wifi_ssid=")) {
-    set_wifi_ssid(message, configData);
+    res = set_wifi_ssid(message, configData);
     write_config_to_memory(configData);
+    WiFi.begin(configData->wifi_ssid, configData->wifi_password);
   } else if (message->startsWith("wifi_password=")) {
-    set_wifi_password(message, configData);
+    res = set_wifi_password(message, configData);
     write_config_to_memory(configData);
+    WiFi.begin(configData->wifi_ssid, configData->wifi_password);
   } else if (message->startsWith("set_user=")) {
-    set_user(message, configData);
+    res = set_user(message, configData);
     write_config_to_memory(configData);
   } else if (message->startsWith("remove_user=")) {
-    remove_user(configData, getValueFromMessage( message, '=' ));
+    res = remove_user(configData, getValueFromMessage( message, '=' ));
     write_config_to_memory(configData);
+  } else if (message->startsWith("wifi_status")) {
+    res = wifi_status();
   } else {
-    Serial.println("[W] Command not found.");
+    res = String("[W] Command not found.");
   }
+  return res;
 }
 
 void close_latch_if_needed(struct s_motor* motorData, struct s_door* doorData) {
@@ -368,15 +436,15 @@ void check_door_captor(struct s_door* doorData) {
 ////////////
 void setup() {
   // Mandatory delay or the board will not boot
-  delay(500);
+  delay(1000);
   // Basic init
   Serial.begin(115200);
   delay(10);
   Serial.setTimeout(300);
   Serial.println("");
+  Serial.println("[I] Initialization of the card...");
   // Memory init
   init_global_config(&GConfig);
-  Serial.println("[I] Initialization of the card...");
   pinMode(LED_PIN_RED, OUTPUT);
   pinMode(LED_PIN_BLUE, OUTPUT);
   digitalWrite(LED_PIN_RED, LOW); // Enable the LED (indicates that it is starting up)
@@ -395,23 +463,45 @@ void setup() {
   WiFi.begin(GConfig.wifi_ssid, GConfig.wifi_password); // Connecting to Wifi
   Serial.print("[I] Trying to establish connection to ");
   Serial.println(GConfig.wifi_ssid);
-  /*while (WiFi.status() != WL_CONNECTED) { // TODO check wifi in the loop because it is not necessary to be able to open the door.
-  //  Serial.print(".");
-    delay(500);
+  int max_delay = 0;
+  while (WiFi.status() != WL_CONNECTED && max_delay < MAX_WIFI_CONNECT_DELAY) {
+    Serial.print(".");
+    delay(WIFI_DELAY_BETWEEN_CONNECT);
+    max_delay += WIFI_DELAY_BETWEEN_CONNECT;
   }
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.print("IP: ");
-  Serial.println(WiFi.localIP()); */
+  Serial.println(".");
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("[E] Wifi not connected, we will try again later. Please, in the meantime, verify the wifi credentials.");
+  } else {
+    Serial.print("[I] WiFi connected. IP: ");
+    Serial.println(WiFi.localIP());
+  }
 
   // Door init
-  // TODO get the status from the memory and/or the magnetic switch
   GDoorData.isDoorOpened = false;
   GDoorData.isLatchOpened = false;
   GDoorData.latchOpenedSince = 0;
 
-  // Motor init
-  // TODO get the variables from the memory
+  // HTTP Server init
+  GWebServer.onRequestBody([](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
+    if (request->url() == "/command" && request->method() == HTTP_POST) {
+      String str = "";
+      for(size_t i=0; i<len; i++) {
+        str += (char)data[i];
+      }
+      Serial.println("--> Web server request command :");
+      Serial.println(str.c_str());
+      str = interpretSerialMessage(&str, &GConfig, &GDoorData);
+      Serial.println("--> Web server request result:");
+      Serial.println(str.c_str());
+      Serial.println("--> End of web server request");
+      request->send(200, "text/plain", str.c_str());
+    }
+  });
+  GWebServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", "The HTTP server is up and running!");
+  });
+  GWebServer.begin();
 
   run_status(&GConfig.motor, &GDoorData);
   Serial.println("[I] Initialization finished.");
@@ -422,16 +512,23 @@ void setup() {
 //  MAINLOOP  //
 ////////////////
 void loop() {
-  // TODO blink blue led to say it is ready to operate
-  //digitalWrite(LED_PIN_RED, LOW);
-  //digitalWrite(LED_PIN_RED, HIGH);
+  String output;
+  unsigned long timer = millis();
+
+  // Blinker (led) act as a keep alive display
+  if (timer - GLastBlink > TIME_BETWEEN_BLINKS) {
+    digitalWrite(LED_PIN_BLUE, GAliveLed);
+    GAliveLed = !GAliveLed;
+    GLastBlink = timer;
+  }
 
   check_door_captor(&GDoorData);
   close_latch_if_needed(&GConfig.motor, &GDoorData);
 
   GInputString = Serial.readString();
   if (GInputString.length() != 0) {
-    interpretSerialMessage(&GInputString, &GConfig, &GDoorData);
+    output = interpretSerialMessage(&GInputString, &GConfig, &GDoorData);
+    Serial.print(output);
   }
 
   // TODO check socket message
