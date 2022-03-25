@@ -52,6 +52,7 @@ String print_user_status(struct s_user *user, int id) {
   res += user->username;
   res += " / ";
   res += user->key;
+  res += "\n";
   return res;
 }
 
@@ -359,7 +360,7 @@ String getStringFromMessage(String *message, char charSeparator, int skip) {
 
 String interpretSerialMessage(String *message, struct s_config* configData, struct s_door* doorData) {
   struct s_motor* motorData = &configData->motor;
-  String res = "yolo\n\nTEST\n\n";
+  String res = "";
 
   if (message->equals("open")) {
     res = run_open_latch(motorData, doorData);
@@ -406,7 +407,7 @@ String interpretSerialMessage(String *message, struct s_config* configData, stru
   } else if (message->startsWith("wifi_status")) {
     res = wifi_status();
   } else {
-    res = String("[W] Command not found.");
+    res = String("[W] Command not found.\n");
   }
   return res;
 }
@@ -515,7 +516,7 @@ void loop() {
   String output;
   unsigned long timer = millis();
 
-  // Blinker (led) act as a keep alive display
+  // Blinker (led) act as a is alive display
   if (timer - GLastBlink > TIME_BETWEEN_BLINKS) {
     digitalWrite(LED_PIN_BLUE, GAliveLed);
     GAliveLed = !GAliveLed;
